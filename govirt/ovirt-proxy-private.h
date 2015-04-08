@@ -38,6 +38,7 @@ struct _OvirtProxyPrivate {
     OvirtApi *api;
     char *jsessionid;
     SoupCookieJar *cookie_jar;
+    GHashTable *additional_headers;
 
     gulong ssl_ca_file_changed_id;
 };
@@ -68,6 +69,10 @@ void ovirt_rest_call_async(OvirtRestCall *call,
                            gpointer user_data,
                            GDestroyNotify destroy_func);
 gboolean ovirt_rest_call_finish(GAsyncResult *result, GError **err);
+
+void ovirt_proxy_append_additional_headers(OvirtProxy *proxy,
+                                           RestProxyCall *call);
+
 
 G_END_DECLS
 
