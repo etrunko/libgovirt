@@ -1,0 +1,14 @@
+* list of languages in po/meson.build? Ok with translators?
+
+(issues when updating meson)
+(no i18n in meson 0.31)
+
+
+meson:
+- one file per directory (issues with generated headers, stuff like that otherwise, dest files cannot have subdir component)
+- glib-mkenums -> wrapper script
+- config.h handling with configure file. How to find which #define from config.h are important?
+- pkg-config file generation
+- gir generation (careful not to add non-exported headers ;)
+- declare_dependency() for convenience-library like behaviour (ie build libgovirt in govirt/, and use
+  it when linking a program in a different directory, and have rebuild deps correct)
