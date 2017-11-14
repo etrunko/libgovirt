@@ -1,7 +1,11 @@
-add_global_arguments('-Dabs_srcdir="'+meson.source_root()+'"', language : 'c')
+test_govirt_sources = [
+    'test-govirt.c',
+    'mock-httpd.c',
+    'mock-httpd.h'
+]
 
-### tests
-executable('test-govirt',
-           [ 'test-govirt.c', 'mock-httpd.c', 'mock-httpd.h' ],
-           dependencies: govirtlib_dep,
-           link_with: govirtlib)
+test_govirt = executable('test-govirt', test_govirt_sources,
+                         dependencies: govirt_lib_dep,
+                         c_args : '-Dabs_srcdir="@0@"'.format(meson.source_root()))
+
+test('test-govirt', test_govirt)

@@ -1,137 +1,132 @@
-add_global_arguments('-Wno-deprecated-declarations', language: 'c')
+gnome = import('gnome')
 
-lib_sources = [
-    'glib-compat.c',
-    'ovirt-action-rest-call.c',
-    'ovirt-api.c',
-    'ovirt-cdrom.c',
-    'ovirt-collection.c',
-    'ovirt-error.c',
-    'ovirt-options.c',
-    'ovirt-proxy.c',
-    'ovirt-proxy-deprecated.c',
-    'ovirt-resource.c',
-    'ovirt-rest-call.c',
-    'ovirt-resource-rest-call.c',
-    'ovirt-storage-domain.c',
-    'ovirt-utils.c',
-    'ovirt-vm.c',
-    'ovirt-vm-display.c',
-    'ovirt-vm-xml.c',
-    'ovirt-vm-pool.c'
-]
-
-lib_headers = [
+govirt_headers = [
     'govirt.h',
     'ovirt-api.h',
     'ovirt-cdrom.h',
+    'ovirt-cluster.h',
     'ovirt-collection.h',
+    'ovirt-data-center.h',
     'ovirt-error.h',
+    'ovirt-host.h',
     'ovirt-options.h',
     'ovirt-proxy.h',
     'ovirt-resource.h',
     'ovirt-rest-call-error.h',
     'ovirt-storage-domain.h',
     'ovirt-types.h',
+    'ovirt-vm-display.h',
     'ovirt-vm.h',
     'ovirt-vm-pool.h',
-    'ovirt-vm-display.h'
 ]
-install_headers(lib_headers, subdir : 'govirt-1.0/govirt')
 
-noinst_lib_headers = [
+install_headers(govirt_headers, subdir : govirt_include_subdir)
+
+govirt_enum_types = gnome.mkenums_simple('ovirt-enum-types',
+                                         sources : govirt_headers,
+                                         install : true,
+                                         install_dir : join_paths(govirt_includedir, govirt_include_subdir))
+
+govirt_private_headers = [
     'glib-compat.h',
     'govirt-private.h',
     'ovirt-action-rest-call.h',
     'ovirt-api-private.h',
+    'ovirt-cluster-private.h',
     'ovirt-collection-private.h',
+    'ovirt-data-center-private.h',
+    'ovirt-host-private.h',
     'ovirt-proxy-private.h',
     'ovirt-resource-private.h',
     'ovirt-rest-call.h',
     'ovirt-resource-rest-call.h',
     'ovirt-storage-domain-private.h',
     'ovirt-utils.h',
-    'ovirt-vm-private.h'
+    'ovirt-vm-private.h',
 ]
 
+govirt_enum_types_private = gnome.mkenums_simple('ovirt-enum-types-private',
+                                                 sources : govirt_private_headers,
+                                                 install : false)
 
-## glib-mkenums
+#
+# libgovirt.so
+#
+govirt_sources = [
+    'glib-compat.c',
+    'ovirt-action-rest-call.c',
+    'ovirt-api.c',
+    'ovirt-cdrom.c',
+    'ovirt-cluster.c',
+    'ovirt-collection.c',
+    'ovirt-data-center.c',
+    'ovirt-error.c',
+    'ovirt-host.c',
+    'ovirt-options.c',
+    'ovirt-proxy.c',
+    'ovirt-proxy-deprecated.c',
+    'ovirt-resource.c',
+    'ovirt-resource-rest-call.c',
+    'ovirt-rest-call.c',
+    'ovirt-storage-domain.c',
+    'ovirt-utils.c',
+    'ovirt-vm.c',
+    'ovirt-vm-display.c',
+    'ovirt-vm-pool.c',
+]
 
-gnome = import('gnome')
-ovirt_enums = gnome.mkenums('ovirt-enum-types',
-                            sources : lib_headers,
-                            c_template : 'ovirt-enum-types.c.template',
-                            h_template : 'ovirt-enum-types.h.template')
-ovirt_enums_private = gnome.mkenums('ovirt-enum-types-private',
-                                    sources : noinst_lib_headers,
-                                    c_template : 'ovirt-enum-types-private.c.template',
-                                    h_template : 'ovirt-enum-types-private.h.template')
+govirt_lib_sources = [
+    govirt_enum_types,
+    govirt_enum_types_private,
+    govirt_headers,
+    govirt_private_headers,
+    govirt_sources,
+]
 
+govirt_syms = files('govirt.sym')
+govirt_syms_path = join_paths(meson.current_source_dir(), 'govirt.sym')
+govirt_version_script = '-Wl,--version-script=@0@'.format(govirt_syms_path)
 
-## symbol export
+govirt_lib = library('govirt', govirt_lib_sources,
+                    version : '2.1.0',
+                    dependencies : govirt_deps,
+                    include_directories : govirt_include,
+                    link_args : compiler.get_supported_link_arguments(govirt_version_script),
+                    link_depends : govirt_syms,
+                    install : true)
 
-mapfile = 'govirt.sym'
-vflag = '-Wl,--version-script,' + meson.current_source_dir() + '/' + mapfile
-govirtlib = library(
-  'govirt', lib_sources, ovirt_enums, ovirt_enums_private,
-  soversion : soversion,
-  version : libversion,
-  dependencies : deps,
-  include_directories : [ include_directories(meson.source_root()), include_directories(meson.build_root())],
-  #link_args : ['-Wl,--no-undefined', vflag],
-  link_depends : mapfile,
-  install : true)
+govirt_lib_dep = declare_dependency(link_with : govirt_lib,
+                                   include_directories : govirt_include,
+                                   dependencies : govirt_deps,
+                                   sources : [govirt_enum_types[1], govirt_enum_types_private[1]])
 
-govirtlib_dep = declare_dependency(link_with : govirtlib,
-  include_directories : [ include_directories(meson.source_root()) ],
-  dependencies : deps,
-  # Everything that uses libgovirt needs this built to compile
-  sources : [ovirt_enums, ovirt_enums_private],
-)
+#
+# GoVirt-1.0.gir
+#
+govirt_introspection_sources = [
+    govirt_headers,
+    govirt_sources,
+]
 
+gnome.generate_gir(govirt_lib,
+                   build_by_default : true,
+                   sources : govirt_introspection_sources,
+                   namespace : 'GoVirt',
+                   nsversion : '1.0',
+                   identifier_prefix : 'Ovirt',
+                   symbol_prefix : 'ovirt',
+                   export_packages : 'govirt-1.0',
+                   includes : ['Gio-2.0', 'GObject-2.0', 'Rest-0.7' ],
+                   install : true,
+                   extra_args : ['--c-include=govirt/govirt.h'])
 
-### pkg-config
+#
+# write govirt-1.0.pc
+#
+pkgconfig = import('pkgconfig')
+pkgconfig.generate(govirt_lib,
+                   filebase : 'govirt-1.0',
+                   description : 'goVirt is a GLib binding for oVirt REST API',
+                   subdirs : 'govirt-1.0',
+                   variables : 'exec_prefix=${prefix}')
 
-pkgconf = configuration_data()
-
-pkgconf.set('prefix', get_option('prefix'))
-pkgconf.set('exec_prefix', '${prefix}')
-pkgconf.set('libdir', '${prefix}/@0@'.format(get_option('libdir')))
-pkgconf.set('includedir', '${prefix}/@0@'.format(get_option('includedir')))
-pkgconf.set('VERSION', govirt_version)
-
-pkg_install_dir = '@0@/pkgconfig'.format(get_option('libdir'))
-
-pkg_files = ['govirt-1.0' ]
-
-configure_file(input : 'govirt-1.0.pc.in',
-               output : 'govirt-1.0.pc',
-               configuration : pkgconf,
-               install_dir : pkg_install_dir)
-
-
-
-### gobject-introspection
-
-if build_gir
-  govirt_gir_extra_args = [ '--c-include=govirt/govirt.h' ]
-  if meson.is_subproject()
-    # FIXME: There must be a better way to do this
-    # Need to pass the include path to find gst/gst.h and gst/gstenumtypes.h (built)
-    govirt_gir_extra_args += ['--cflags-begin',
-                              '-I' + meson.current_source_dir() + '/..',
-                              '-I' + meson.current_build_dir() + '/..',
-                              '--cflags-end']
-  endif
-  gnome.generate_gir(govirtlib,
-    sources : lib_sources + lib_headers,
-    namespace : 'GoVirt',
-    nsversion : apiversion,
-    identifier_prefix : 'Ovirt',
-    symbol_prefix : 'ovirt_',
-    export_packages : 'govirt-1.0',
-    includes : ['Gio-2.0', 'GObject-2.0', 'Rest-0.7' ],
-    install : true,
-    extra_args : govirt_gir_extra_args,
-  )
-endif
